@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Rondines QR</title>
+
+  <!-- Librería de escaneo QR -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root{
+      --brand:#7b135f;
+      --brand2:#95156f;
+      --bg:#f4f4f7;
+      --card:#ffffff;
+      --text:#222;
+      --muted:#777;
+      --ok:#1d8b4c;
+      --warn:#d49a00;
+      --bad:#b3261e;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .app{
+      max-width:620px;
+      margin:auto;
+      min-height:100vh;
+      background:#fff;
+    }
+
+    .top{
+      background:linear-gradient(135deg,var(--brand),var(--brand2));
+      color:#fff;
+      padding:24px 20px 22px;
+    }
+
+    .top h1{margin:0;font-size:27px;letter-spacing:.3px}
+    .top p{margin:7px 0 0;opacity:.9}
+
+    .content{padding:18px}
+
+    .card{
+      border-radius:20px;
+      padding:18px;
+      background:#fff;
+      box-shadow:0 7px 25px rgba(0,0,0,.08);
+      margin-bottom:16px;
+    }
+
+    label{
+      display:block;
+      font-size:13px;
+      color:var(--muted);
+      margin-bottom:7px;
+      font-weight:bold;
+    }
+
+    select,button{
+      width:100%;
+      min-height:52px;
+      border-radius:14px;
+      font-size:16px;
+    }
+
+    select{
+      border:1px solid #ddd;
+      background:#fff;
+      padding:0 13px;
+    }
+
+    button{
+      border:0;
+      font-weight:bold;
+      cursor:pointer;
+      padding:0 16px;
+    }
+
+    .primary{background:var(--brand);color:#fff;margin-top:14px}
+    .danger{background:#fff0ef;color:var(--bad);border:1px solid #f1c3bf}
+    .secondary{background:#eee;color:#333}
+
+    button:disabled{opacity:.5;cursor:not-allowed}
+
+    .hidden{display:none!important}
+
+    .statusrow{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    .metric{
+      background:#f7f7fa;
+      border-radius:15px;
+      padding:14px;
+      text-align:center;
+    }
+    .metric .n{font-size:26px;font-weight:bold}
+    .metric .t{font-size:12px;color:var(--muted);margin-top:4px}
+
+    #reader{
+      width:100%;
+      overflow:hidden;
+      border-radius:18px;
+      background:#111;
+      min-height:300px;
+    }
+
+    #reader video{
+      object-fit:cover!important;
+    }
+
+    .scanBadge{
+      margin-top:12px;
+      border-radius:14px;
+      padding:13px;
+      background:#f4f4f7;
+      font-size:14px;
+      line-height:1.45;
+    }
+    .scanBadge.ok{background:#eaf7ef;color:#176537}
+    .scanBadge.warn{background:#fff6d8;color:#856300}
+    .scanBadge.bad{background:#fdeceb;color:#8f211b}
+
+    .last{
+      margin-top:14px;
+      border-top:1px solid #eee;
+      padding-top:14px;
+    }
+    .last strong{display:block;font-size:18px;margin-bottom:4px}
+
+    .footer{
+      text-align:center;
+      color:#999;
+      font-size:12px;
+      padding:10px 0 24px;
+    }
+
+    .spinner{
+      display:inline-block;width:16px;height:16px;
+      border:2px solid rgba(255,255,255,.45);
+      border-top-color:#fff;border-radius:50%;
+      animation:spin .8s linear infinite;
+      vertical-align:-3px;margin-right:7px;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <div class="top">
+    <h1>RONDINES QR</h1>
+    <p>Control de recorridos · Prevención</p>
+  </div>
+
+  <div class="content">
+
+    <div id="pantallaInicio" class="card">
+      <h2 style="margin-top:0">Nuevo rondín</h2>
+
+      <label for="guardia">VELADOR</label>
+      <select id="guardia">
+        <option value="">Cargando veladores...</option>
+      </select>
+
+      <button id="btnIniciar" class="primary" disabled>INICIAR RONDÍN</button>
+
+      <div id="estadoInicio" class="scanBadge">
+        Conectando con el sistema...
+      </div>
+    </div>
+
+    <div id="pantallaRondin" class="hidden">
+
+      <div class="card">
+        <div style="font-size:12px;color:#777">RONDÍN EN CURSO</div>
+        <h2 id="nombreGuardia" style="margin:5px 0 0">—</h2>
+
+        <div class="statusrow">
+          <div class="metric">
+            <div id="contador" class="n">0</div>
+            <div class="t">LECTURAS</div>
+          </div>
+          <div class="metric">
+            <div id="tiempo" class="n">00:00</div>
+            <div class="t">TIEMPO</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div id="reader"></div>
+
+        <div id="estadoScan" class="scanBadge">
+          Iniciando cámara...
+        </div>
+
+        <div class="last">
+          <span style="font-size:12px;color:#777">ÚLTIMO PUNTO</span>
+          <strong id="ultimoPunto">Sin lecturas</strong>
+          <span id="ultimoDetalle" style="color:#777">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <button id="btnFinalizar" class="danger">FINALIZAR RONDÍN</button>
+      </div>
+    </div>
+
+    <div id="pantallaFinal" class="card hidden">
+      <h2 style="margin-top:0">Rondín finalizado</h2>
+      <div id="resumenFinal"></div>
+      <button id="btnOtro" class="primary">INICIAR OTRO RONDÍN</button>
+    </div>
+
+    <div class="footer">Desarrollado por Luis Zanatta</div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================
+   CONFIGURACIÓN
+   PEGA AQUÍ LA URL DE TU APPS SCRIPT QUE TERMINA EN /exec
+   ========================================================== */
+const BACKEND_URL = 'https://script.google.com/a/macros/liverpool.com.mx/s/AKfycbyYt00AtcNz7SVQrBCssfJtrjDW0xlVfmnTMVXmAtoafG_VklPnym9_hR3QAodY3N2FXQ/exec';
+
+
+let state = {
+  guardias: [],
+  puntos: [],
+  rondinId: '',
+  guardiaId: '',
+  guardiaNombre: '',
+  inicioMs: 0,
+  contador: 0,
+  scanner: null,
+  scannerActivo: false,
+  bloqueadoHasta: 0,
+  ultimoCodigo: '',
+  gps: {lat:'', lng:'', accuracy:''},
+  timer: null
+};
+
+const $ = id => document.getElementById(id);
+
+function jsonp(params) {
+  return new Promise((resolve, reject) => {
+    const cb = '__rq_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+    const script = document.createElement('script');
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error('El servidor tardó demasiado en responder.'));
+    }, 15000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      try { delete window[cb]; } catch(e) {}
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[cb] = data => {
+      cleanup();
+      resolve(data);
+    };
+
+    const qs = new URLSearchParams({...params, callback:cb});
+    script.src = BACKEND_URL + '?' + qs.toString();
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('No fue posible conectar con Apps Script.'));
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
+async function iniciarApp() {
+  if (!BACKEND_URL || BACKEND_URL.includes('PEGA_AQUI')) {
+    $('estadoInicio').className = 'scanBadge bad';
+    $('estadoInicio').textContent = 'Falta colocar la URL /exec de Apps Script dentro de BACKEND_URL.';
+    return;
+  }
+
+  try {
+    const data = await jsonp({action:'bootstrap'});
+    if (!data.ok) throw new Error(data.error || 'No se pudo cargar el sistema.');
+
+    state.guardias = data.guardias || [];
+    state.puntos = data.puntos || [];
+
+    $('guardia').innerHTML =
+      '<option value="">Selecciona velador...</option>' +
+      state.guardias.map(g =>
+        `<option value="${esc(g.id)}">${esc(g.nombre)}</option>`
+      ).join('');
+
+    $('btnIniciar').disabled = false;
+    $('estadoInicio').className = 'scanBadge ok';
+    $('estadoInicio').textContent =
+      `Sistema listo · ${data.totalPuntos || 0} checkpoints cargados`;
+
+  } catch(err) {
+    $('estadoInicio').className = 'scanBadge bad';
+    $('estadoInicio').textContent = err.message;
+  }
+}
+
+$('btnIniciar').addEventListener('click', async () => {
+  const guardiaId = $('guardia').value;
+  if (!guardiaId) {
+    $('estadoInicio').className = 'scanBadge warn';
+    $('estadoInicio').textContent = 'Selecciona un velador.';
+    return;
+  }
+
+  const guardia = state.guardias.find(g => g.id === guardiaId);
+  $('btnIniciar').disabled = true;
+  $('btnIniciar').innerHTML = '<span class="spinner"></span>Iniciando...';
+
+  try {
+    const data = await jsonp({action:'start', guardiaId});
+    if (!data.ok) throw new Error(data.error || 'No se pudo iniciar.');
+
+    state.rondinId = data.rondinId;
+    state.guardiaId = guardiaId;
+    state.guardiaNombre = data.guardia || (guardia ? guardia.nombre : '');
+    state.inicioMs = Date.now();
+    state.contador = 0;
+    state.ultimoCodigo = '';
+
+    $('nombreGuardia').textContent = state.guardiaNombre;
+    $('contador').textContent = '0';
+    $('ultimoPunto').textContent = 'Sin lecturas';
+    $('ultimoDetalle').textContent = '—';
+
+    $('pantallaInicio').classList.add('hidden');
+    $('pantallaRondin').classList.remove('hidden');
+
+    iniciarTimer();
+    solicitarGPS();
+    await iniciarScanner();
+
+  } catch(err) {
+    $('estadoInicio').className = 'scanBadge bad';
+    $('estadoInicio').textContent = err.message;
+    $('btnIniciar').disabled = false;
+    $('btnIniciar').textContent = 'INICIAR RONDÍN';
+  }
+});
+
+async function iniciarScanner() {
+  if (typeof Html5Qrcode === 'undefined') {
+    $('estadoScan').className = 'scanBadge bad';
+    $('estadoScan').textContent = 'No cargó el lector QR.';
+    return;
+  }
+
+  state.scanner = new Html5Qrcode('reader');
+
+  const config = {
+    fps: 10,
+    qrbox: {width:250, height:250},
+    aspectRatio: 1.0
+  };
+
+  try {
+    await state.scanner.start(
+      { facingMode: 'environment' },
+      config,
+      codigoDetectado,
+      () => {}
+    );
+
+    state.scannerActivo = true;
+    $('estadoScan').className = 'scanBadge ok';
+    $('estadoScan').textContent = 'Cámara lista · Acerca el siguiente QR';
+
+  } catch(err) {
+    $('estadoScan').className = 'scanBadge bad';
+    $('estadoScan').textContent =
+      'No pude abrir la cámara. Revisa permisos del navegador. ' +
+      (err && err.message ? err.message : '');
+  }
+}
+
+async function codigoDetectado(decodedText) {
+  const codigo = String(decodedText || '').trim();
+  if (!codigo) return;
+
+  const ahora = Date.now();
+
+  // Evita que la cámara lea el mismo QR muchas veces seguidas.
+  if (ahora < state.bloqueadoHasta) return;
+  if (codigo === state.ultimoCodigo && ahora < state.bloqueadoHasta + 4000) return;
+
+  state.bloqueadoHasta = ahora + 1400;
+  state.ultimoCodigo = codigo;
+
+  vibrar(80);
+  $('estadoScan').className = 'scanBadge';
+  $('estadoScan').textContent = 'Registrando ' + codigo + '...';
+
+  try {
+    const params = {
+      action: 'scan',
+      rondinId: state.rondinId,
+      puntoId: codigo,
+      lat: state.gps.lat,
+      lng: state.gps.lng,
+      accuracy: state.gps.accuracy,
+      device: navigator.userAgent.slice(0,180)
+    };
+
+    const data = await jsonp(params);
+
+    if (!data.ok) {
+      $('estadoScan').className = data.desconocido ? 'scanBadge warn' : 'scanBadge bad';
+      $('estadoScan').textContent = data.error || 'No se pudo registrar.';
+      vibrar([120,70,120]);
+      return;
+    }
+
+    state.contador++;
+    $('contador').textContent = state.contador;
+
+    $('ultimoPunto').textContent = data.punto.nombre;
+    const tiempo = data.segDesdeAnterior === '' || data.segDesdeAnterior == null
+      ? 'Primera lectura'
+      : 'Desde anterior: ' + formatoSeg(data.segDesdeAnterior);
+
+    $('ultimoDetalle').textContent =
+      `${data.punto.zona || 'Sin zona'} · ${data.hora} · ${tiempo}`;
+
+    if (data.duplicado) {
+      $('estadoScan').className = 'scanBadge warn';
+      $('estadoScan').textContent = '⚠ QR repetido registrado: ' + data.punto.nombre;
+    } else {
+      $('estadoScan').className = 'scanBadge ok';
+      $('estadoScan').textContent = '✓ ' + data.punto.nombre + ' registrado';
+    }
+
+    vibrar(130);
+
+    // Actualiza GPS periódicamente sin detener la cámara.
+    solicitarGPS();
+
+  } catch(err) {
+    $('estadoScan').className = 'scanBadge bad';
+    $('estadoScan').textContent = err.message;
+    vibrar([120,70,120]);
+  }
+}
+
+$('btnFinalizar').addEventListener('click', async () => {
+  if (!state.rondinId) return;
+
+  if (!confirm('¿Finalizar este rondín?')) return;
+
+  $('btnFinalizar').disabled = true;
+  $('btnFinalizar').textContent = 'Finalizando...';
+
+  try {
+    if (state.scanner && state.scannerActivo) {
+      try { await state.scanner.stop(); } catch(e) {}
+      state.scannerActivo = false;
+    }
+
+    const data = await jsonp({
+      action:'finish',
+      rondinId:state.rondinId
+    });
+
+    if (!data.ok) throw new Error(data.error || 'No se pudo finalizar.');
+
+    detenerTimer();
+    $('pantallaRondin').classList.add('hidden');
+    $('pantallaFinal').classList.remove('hidden');
+
+    $('resumenFinal').innerHTML = `
+      <div class="statusrow">
+        <div class="metric">
+          <div class="n">${data.puntos}</div>
+          <div class="t">LECTURAS</div>
+        </div>
+        <div class="metric">
+          <div class="n">${Number(data.duracionMin).toFixed(1)}</div>
+          <div class="t">MINUTOS</div>
+        </div>
+      </div>
+      <div class="scanBadge ok" style="margin-top:14px">
+        ✓ ${esc(data.guardia)} · Rondín guardado correctamente
+      </div>
+    `;
+
+  } catch(err) {
+    $('estadoScan').className = 'scanBadge bad';
+    $('estadoScan').textContent = err.message;
+    $('btnFinalizar').disabled = false;
+    $('btnFinalizar').textContent = 'FINALIZAR RONDÍN';
+  }
+});
+
+$('btnOtro').addEventListener('click', () => {
+  state.rondinId = '';
+  state.contador = 0;
+  $('pantallaFinal').classList.add('hidden');
+  $('pantallaInicio').classList.remove('hidden');
+  $('btnIniciar').disabled = false;
+  $('btnIniciar').textContent = 'INICIAR RONDÍN';
+  $('btnFinalizar').disabled = false;
+  $('btnFinalizar').textContent = 'FINALIZAR RONDÍN';
+});
+
+function iniciarTimer() {
+  detenerTimer();
+  state.timer = setInterval(() => {
+    const seg = Math.floor((Date.now() - state.inicioMs)/1000);
+    $('tiempo').textContent = formatoMinSeg(seg);
+  },1000);
+}
+
+function detenerTimer() {
+  if (state.timer) clearInterval(state.timer);
+  state.timer = null;
+}
+
+function formatoMinSeg(seg) {
+  seg = Number(seg || 0);
+  const m = Math.floor(seg/60);
+  const s = seg%60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function formatoSeg(seg) {
+  seg = Number(seg || 0);
+  const m = Math.floor(seg/60);
+  const s = seg%60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function solicitarGPS() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      state.gps = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy || 0)
+      };
+    },
+    () => {},
+    {
+      enableHighAccuracy:true,
+      timeout:7000,
+      maximumAge:30000
+    }
+  );
+}
+
+function vibrar(pattern) {
+  try {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch(e) {}
+}
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+iniciarApp();
+</script>
+</body>
+</html>
